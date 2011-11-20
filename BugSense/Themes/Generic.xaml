@@ -1,0 +1,51 @@
+﻿<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"    
+	xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+	xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="clr-namespace:BugSense.Notifications" mc:Ignorable="d">
+
+    <DataTemplate x:Key="CommandTemplate">
+        <Button MinWidth="150" local:NotificationBoxCommand.Command="{Binding}"
+                HorizontalAlignment="Left" Content="{Binding Content}" BorderBrush="#FFDDDDDD" Foreground="#FFDDDDDD" />
+    </DataTemplate>
+
+    <Style TargetType="local:NotificationBox">
+        <Setter Property="FontFamily" Value="{StaticResource PhoneFontFamilyNormal}" />
+        <Setter Property="FontSize" Value="{StaticResource PhoneFontSizeNormal}" />
+        <Setter Property="Foreground" Value="{StaticResource PhoneForegroundBrush}" />
+        <Setter Property="Background" Value="#99000000" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:NotificationBox">                    
+                    <Border Background="#99000000">
+                        <Border x:Name="border" Background="#FF1F1F1F" VerticalAlignment="Top">
+                            <Grid Margin="24,40,24,0">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="{TemplateBinding Title}" Grid.Row="0" VerticalAlignment="Center" Margin="0,0,0,2" FontSize="28" TextWrapping="Wrap" Foreground="#FFDDDDDD" />
+                                <TextBlock Text="{TemplateBinding Message}" TextWrapping="Wrap" Grid.Row="1" Margin="0,2,0,2" FontSize="22" Foreground="#FFDDDDDD" />
+                                <ItemsControl ItemsSource="{TemplateBinding CommandsSource}"
+                                              ItemTemplate="{StaticResource CommandTemplate}"
+                                              Grid.Row="2"
+                                             HorizontalAlignment="Left"
+                                              Margin="0,2,0,8">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                </ItemsControl>
+                            </Grid>
+                        </Border>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+</ResourceDictionary>
