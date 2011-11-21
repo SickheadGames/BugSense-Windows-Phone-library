@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.IsolatedStorage;
 using System.Linq;
@@ -189,8 +190,10 @@ namespace BugSense {
         private void Send(BugSenseRequest request)
         {
             string json = GetJson(request);
-            SaveToFile(json);
-            Scheduler.NewThread.Schedule(ProccessSavedErrors);
+            if (!string.IsNullOrEmpty(json)) {
+                SaveToFile(json);
+                Scheduler.NewThread.Schedule(ProccessSavedErrors);
+            }
         }
 
         #endregion
@@ -199,11 +202,19 @@ namespace BugSense {
 
         private string GetJson(BugSenseRequest request)
         {
-            MemoryStream ms = new MemoryStream();
-            _jsonSerializer.WriteObject(ms, request);
-            var array = ms.ToArray();
-            string json = Encoding.UTF8.GetString(array, 0, array.Length);
-            return json;
+            try {
+                Log("Sending json ");
+                using (MemoryStream ms = new MemoryStream()) {
+                    _jsonSerializer.WriteObject(ms, request);
+                    var array = ms.ToArray();
+                    string json = Encoding.UTF8.GetString(array, 0, array.Length);
+                    return json;
+                }
+            }
+            catch {
+                Log("Error during BugSenseRequest serialization");
+                return string.Empty;
+            }
         }
 
         private AppEnvironment GetEnvironment()
@@ -322,6 +333,12 @@ namespace BugSense {
             }
             //If this fails it probably due to an issue with the Isolated Storage.
             catch (Exception e) { /* Swallow like a fish - Not much that we can do here */}
+        }
+
+        private void Log(string message)
+        {
+            //TODO: Implement better VS logging
+            Debugger.Log(3, "BugSense", message);
         }
 
         #endregion
