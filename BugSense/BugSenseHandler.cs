@@ -190,8 +190,7 @@ namespace BugSense {
         {
             string json = GetJson(request);
             SaveToFile(json);
-            ProccessSavedErrors();
-            //Scheduler.NewThread.Schedule(ProccessSavedErrors);
+            Scheduler.NewThread.Schedule(ProccessSavedErrors);
         }
 
         #endregion
@@ -264,46 +263,46 @@ namespace BugSense {
                         request.BeginGetResponse(a => {
                             try {
                                 request.EndGetResponse(a);
-                                //Error was sent so delete it!
+                                //Error sent! Delete it!
                                 using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
                                     storage.DeleteFile(contextFilePath);
                                 }
                             }
-                            catch (Exception e) {
-                            }
-                        }, filePath);
-
+                            catch { }
+                        }, null);
                     }
                     catch {
 
                     }
                 }, errorJson);
             }
-            catch (Exception ex) {
-                //Error is already saved so next time the app starts will try to send it again
-            }
+            catch { /* Error is already saved so next time the app starts will try to send it again*/ }
         }
 
         private static void SaveToFile(string postData)
         {
-            using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
-                if (!storage.DirectoryExists(s_FolderName))
-                    storage.CreateDirectory(s_FolderName);
+            try {
+                using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
+                    if (!storage.DirectoryExists(s_FolderName))
+                        storage.CreateDirectory(s_FolderName);
 
-                string fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
-                using (var fileStream = storage.CreateFile(Path.Combine(s_FolderName, fileName))) {
-                    using (StreamWriter sw = new StreamWriter(fileStream)) {
-                        sw.Write(postData);
+                    string fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
+                    using (var fileStream = storage.CreateFile(Path.Combine(s_FolderName, fileName))) {
+                        using (StreamWriter sw = new StreamWriter(fileStream)) {
+                            sw.Write(postData);
+                        }
                     }
                 }
+            }
+            catch { /* Getting in here means the phone is about to explode */
             }
         }
 
         private void ProccessSavedErrors()
         {
-            using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
-                if (storage.DirectoryExists(s_FolderName)) {
-                    try {
+            try {
+                using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
+                    if (storage.DirectoryExists(s_FolderName)) {
                         var fileNames = storage.GetFileNames(s_FolderName + "\\*").OrderByDescending(s => s).ToList();
                         int counter = 0;
                         foreach (var fileName in fileNames) {
@@ -319,10 +318,10 @@ namespace BugSense {
                             //
                         }
                     }
-                    //If this fails it probably due to an issue with the Isolated Storage.
-                    catch (Exception e) { /* Swallow like a fish - Not much that we can do here */}
                 }
             }
+            //If this fails it probably due to an issue with the Isolated Storage.
+            catch (Exception e) { /* Swallow like a fish - Not much that we can do here */}
         }
 
         #endregion
