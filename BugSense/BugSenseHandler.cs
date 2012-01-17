@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.IO.IsolatedStorage;
@@ -7,9 +9,12 @@ using System.Net;
 using System.Reflection;
 using System.Runtime.Serialization.Json;
 using System.Text;
+using System.Threading;
 using System.Windows;
+using BugSense.Coroutines;
 using BugSense.Extensions;
 using BugSense.Internal;
+using BugSense.Tasks;
 using Microsoft.Phone.Info;
 using Microsoft.Phone.Net.NetworkInformation;
 using Microsoft.Phone.Reactive;
@@ -23,11 +28,6 @@ namespace BugSense {
         BugSenseHandler()
         {
 
-        }
-
-        static BugSenseHandler()
-        {
-            _jsonSerializer = new DataContractJsonSerializer(typeof(BugSenseRequest));
         }
 
         public static BugSenseHandler Instance
@@ -52,16 +52,16 @@ namespace BugSense {
 
         #region [ Fields ]
 
-        private const string s_FolderName = "BugSense_Exceptions";
-        private const string s_FileName = "{0}_BugSense_Ex_{1}.dat";
-        private const int s_MaxExceptions = 3;
         private NotificationOptions _options;
         private Application _application;
         private bool _initialized;
         private string _appVersion;
         private string _appName;
-        private static readonly DataContractJsonSerializer _jsonSerializer;
         public event EventHandler<BugSenseUnhandledExceptionEventArgs> UnhandledException;
+        /// <summary>
+        /// Occurs when the unhandled exception is sent to BugSense
+        /// </summary>
+        //public event EventHandler<BugSenseLogErrorCompletedEventArgs> UnhandledExceptionSent;
 
         #endregion
 
@@ -73,11 +73,17 @@ namespace BugSense {
         /// <param name="ex"></param>
         /// <param name="comment"></param>
         /// <param name="options"></param>
+        [Obsolete("Use BugSenseHandler.Instance.LogError")]
         public static void HandleError(Exception ex, string comment = null, NotificationOptions options = null)
         {
-            if (Instance == null || !Instance._initialized)
+            Instance.LogError(ex, comment, options);
+        }
+
+        public void LogError(Exception ex, string comment = null, NotificationOptions options = null)
+        {
+            if (!_initialized)
                 throw new InvalidOperationException("BugSense Handler is not initialized.");
-            Instance.Handle(ex, comment, options ?? Instance._options);
+            Handle(ex, comment, options ?? Instance._options);
         }
 
         /// <summary>
@@ -92,30 +98,38 @@ namespace BugSense {
                 return;
 
             //General Initializations
-            _options = options ?? DefaultOptions();
+            _options = options ?? GetDefaultOptions();
             _application = application;
             G.API_KEY = apiKey;
 
             //Getting version and app details
-            var nameHelper = new AssemblyName(Assembly.GetCallingAssembly().FullName);
-            _appVersion = nameHelper.Version.ToString();
-            _appName = nameHelper.Name;
+            var appDetails = Helpers.GetVersion();
+            _appName = appDetails[0];//nameHelper.Name;
+            _appVersion = appDetails[1];//nameHelper.Version.ToString();
 
             //Attaching the handler
             _application.UnhandledException += OnUnhandledException;
 
-            //Get a list with exceptions stored from previoys crashes
-            ProccessSavedErrors();
+            //Proccess errors from previous crashes
+            var tasks = new List<IResult> { new ProccessErrorsTask() };
+            Coroutine.BeginExecute(tasks.GetEnumerator());
 
             //Just in case Init is called again
             _initialized = true;
         }
 
+
         /// <summary>
         /// Gets default options for error handling
         /// </summary>
         /// <returns></returns>
+        [Obsolete("Use BugSenseHandler.Instance.GetDefaultOptions")]
         public static NotificationOptions DefaultOptions()
+        {
+            return Instance.GetDefaultOptions();
+        }
+
+        public NotificationOptions GetDefaultOptions()
         {
             return new NotificationOptions {
                 Title = Labels.DefaultNotificationTitle,
@@ -135,31 +149,48 @@ namespace BugSense {
                 handler(this, e);
         }
 
+        //private void OnUnhandledExceptionSent(BugSenseLogErrorCompletedEventArgs args)
+        //{
+        //    var handler = UnhandledExceptionSent;
+        //    if (handler != null)
+        //        handler(this, args);
+        //}
+
         private void OnUnhandledException(object sender, ApplicationUnhandledExceptionEventArgs args)
         {
             if (args.ExceptionObject is BugSenseUnhandledException)
                 return;
+            args.Handled = true;
             var e = new BugSenseUnhandledExceptionEventArgs(args.ExceptionObject, args.Handled);
             OnBugSenseUnhandledException(e);
             args.Handled = e.Handled;
             if (e.Cancel)
                 return;
-            if (!args.Handled) {
-                Handle(args.ExceptionObject, e.Comment, _options);
-                args.Handled = true;
-            }
+            Handle(args.ExceptionObject, e.Comment, _options, !args.Handled);
+            args.Handled = true;
         }
 
-        private void Handle(Exception e, string comment, NotificationOptions options)
+        private DateTime _lastMethodHandledCalledAt;
+
+        private void Handle(Exception e, string comment, NotificationOptions options, bool throwExceptionAfterComplete = false)
         {
+            if (DateTime.Now.AddSeconds(-1) < _lastMethodHandledCalledAt) {
+                return;
+            }
+            _lastMethodHandledCalledAt = DateTime.Now;
+            if (Debugger.IsAttached)//Dont send the error
+                return;
             var request = new BugSenseRequest(e.ToBugSenseEx(comment), GetEnvironment());
+            if (throwExceptionAfterComplete) {
+                LogAndSend(request, true);
+                return;
+            }
             try {
                 switch (options.Type) {
                     case enNotificationType.MessageBox:
                         if (!NotificationBox.IsOpen())
-                            NotificationBox.Show(options.Title, options.Text,
-                                                       new NotificationBoxCommand(Labels.OkMessage, () => { }));
-                        Send(request);
+                            NotificationBox.Show(options.Title, options.Text, new NotificationBoxCommand(Labels.OkMessage, () => { }));
+                        LogAndSend(request);
                         break;
                     case enNotificationType.MessageBoxConfirm:
                         if (!NotificationBox.IsOpen())
@@ -168,54 +199,44 @@ namespace BugSense {
                                     try {
                                         if (!NotificationBox.IsOpen())
                                             NotificationBox.Show(options.Title, options.Text,
-                                                                 new NotificationBoxCommand(Labels.OkMessage, () => Send(request)),
-                                                                 new NotificationBoxCommand(Labels.CancelMessage,
-                                                                                            () => { }));
+                                                                 new NotificationBoxCommand(Labels.OkMessage, () => LogAndSend(request)),
+                                                                 new NotificationBoxCommand(Labels.CancelMessage, () => { }));
                                     }
                                     catch { }
                                 });
                         break;
                     default:
-                        Send(request);
+                        LogAndSend(request);
                         break;
                 }
             }
-            catch (Exception ex1) {
+            catch (Exception) {
                 if (options.Type != enNotificationType.MessageBoxConfirm) {
-                    Send(request);
+                    LogAndSend(request);
                 }
             }
         }
 
-        private void Send(BugSenseRequest request)
+        private void LogAndSend(BugSenseRequest request, bool throwAfterComplete = false)
         {
-            string json = GetJson(request);
-            if (!string.IsNullOrEmpty(json)) {
-                SaveToFile(json);
-                Scheduler.NewThread.Schedule(ProccessSavedErrors);
-            }
+            ThreadPool.QueueUserWorkItem(state => {
+                var eventArgs = new BugSenseLogErrorCompletedEventArgs(request, request.Exception != null ? request.Exception.OriginalException : null);
+                //eventArgs.ExitApp = throwAfterComplete;
+                var logTask = new LogErrorTask(request);
+                var sendTask = new SendErrorTask();
+                var tasks = new List<IResult> { logTask, sendTask };
+                EventHandler<ResultCompletionEventArgs> callback = (sender, args) => Scheduler.Dispatcher.Schedule(() => {
+                    //OnUnhandledExceptionSent(eventArgs);
+                    //if (eventArgs.ExitApp)
+                        throw new BugSenseUnhandledException();
+                });
+                Coroutine.BeginExecute(tasks.GetEnumerator(), callback: throwAfterComplete ? callback : null);
+            });
         }
 
         #endregion
 
         #region [ Private Helper Methods ]
-
-        private string GetJson(BugSenseRequest request)
-        {
-            try {
-                Log("Sending json ");
-                using (MemoryStream ms = new MemoryStream()) {
-                    _jsonSerializer.WriteObject(ms, request);
-                    var array = ms.ToArray();
-                    string json = Encoding.UTF8.GetString(array, 0, array.Length);
-                    return json;
-                }
-            }
-            catch {
-                Log("Error during BugSenseRequest serialization");
-                return string.Empty;
-            }
-        }
 
         private AppEnvironment GetEnvironment()
         {
@@ -243,102 +264,6 @@ namespace BugSense {
             environment.ScreenOrientation = "unavailable";
             environment.WifiOn = NetworkInterface.NetworkInterfaceType.ToString();
             return environment;
-        }
-
-        private void ProccessFile(string filePath, IsolatedStorageFile storage)
-        {
-            using (var fileStream = storage.OpenFile(filePath, FileMode.Open)) {
-                using (StreamReader sr = new StreamReader(fileStream)) {
-                    string data = sr.ReadToEnd();
-                    ExecuteRequestAsync(data, filePath);
-                }
-            }
-        }
-
-        private static void ExecuteRequestAsync(string errorJson, string filePath)
-        {
-            try {
-                errorJson = "data=" + HttpUtility.UrlEncode(errorJson);
-                var request = WebRequest.CreateHttp(G.URL);
-                request.Method = "POST";
-                request.ContentType = "application/x-www-form-urlencoded";
-                request.UserAgent = "WP7";
-                request.Headers["X-BugSense-Api-Key"] = G.API_KEY;
-                string contextFilePath = filePath;
-                request.BeginGetRequestStream(ar => {
-                    try {
-                        var requestStream = request.EndGetRequestStream(ar);
-                        using (var sw = new StreamWriter(requestStream)) {
-                            sw.Write(ar.AsyncState);
-                        }
-                        request.BeginGetResponse(a => {
-                            try {
-                                request.EndGetResponse(a);
-                                //Error sent! Delete it!
-                                using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
-                                    storage.DeleteFile(contextFilePath);
-                                }
-                            }
-                            catch { }
-                        }, null);
-                    }
-                    catch {
-
-                    }
-                }, errorJson);
-            }
-            catch { /* Error is already saved so next time the app starts will try to send it again*/ }
-        }
-
-        private static void SaveToFile(string postData)
-        {
-            try {
-                using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
-                    if (!storage.DirectoryExists(s_FolderName))
-                        storage.CreateDirectory(s_FolderName);
-
-                    string fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
-                    using (var fileStream = storage.CreateFile(Path.Combine(s_FolderName, fileName))) {
-                        using (StreamWriter sw = new StreamWriter(fileStream)) {
-                            sw.Write(postData);
-                        }
-                    }
-                }
-            }
-            catch { /* Getting in here means the phone is about to explode */
-            }
-        }
-
-        private void ProccessSavedErrors()
-        {
-            try {
-                using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
-                    if (storage.DirectoryExists(s_FolderName)) {
-                        var fileNames = storage.GetFileNames(s_FolderName + "\\*").OrderByDescending(s => s).ToList();
-                        int counter = 0;
-                        foreach (var fileName in fileNames) {
-                            if (string.IsNullOrEmpty(fileName))
-                                continue;
-                            string filePath = Path.Combine(s_FolderName, fileName);
-                            //If there are more exceptions in the pool we just delete them.
-                            if (counter < s_MaxExceptions)
-                                ProccessFile(filePath, storage);
-                            else
-                                storage.DeleteFile(filePath);
-                            counter++;
-                            //
-                        }
-                    }
-                }
-            }
-            //If this fails it probably due to an issue with the Isolated Storage.
-            catch (Exception e) { /* Swallow like a fish - Not much that we can do here */}
-        }
-
-        private void Log(string message)
-        {
-            //TODO: Implement better VS logging
-            Debugger.Log(3, "BugSense", message);
         }
 
         #endregion

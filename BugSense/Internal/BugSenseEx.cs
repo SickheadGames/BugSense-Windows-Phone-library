@@ -4,6 +4,7 @@ using System.Runtime.Serialization;
 namespace BugSense.Internal {
     [DataContract]
     public class BugSenseEx {
+        internal Exception OriginalException { get; set; }
         [DataMember(Name = "message")]
         public string Name { get; set; }
         [DataMember(Name = "backtrace")]
@@ -57,8 +58,6 @@ namespace BugSense.Internal {
         public AppEnvironment AppEnvironment { get; set; }
         [DataMember(Name = "client")]
         public BugSenseClient Client { get; set; }
-        //[DataMember(Name = "comment")]
-        //public string Comment { get; set; }
         [DataMember(Name = "request")]
         public BugSenseInternalRequest Request { get; set; }
     }

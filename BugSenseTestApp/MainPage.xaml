@@ -34,13 +34,9 @@
                 <Button Click="OnAsyncClick" Content="Throw Exception After 5 secs" />
 
                 <Button Click="OnOtherLibClick" Content="Throw Exception From Another Lib" />
-                <Button Click="OnUnhandledExceptionClick" Content="Throw Unhandled Exception" />
-                <Button Click="OnUnhandledExceptionClick" Content="Throw Unhandled Exception" />
-                <Button Click="OnUnhandledExceptionClick" Content="Throw Unhandled Exception" />
-                <Button Click="OnUnhandledExceptionClick" Content="Throw Unhandled Exception" />
-                <Button Click="OnUnhandledExceptionClick" Content="Throw Unhandled Exception" />
-                <Button Click="OnUnhandledExceptionClick" Content="Throw Unhandled Exception" />
-                <Button Click="OnUnhandledExceptionClick" Content="Throw Unhandled Exception" />
+                <Button Click="OnUnhandledExceptionWithInnerClick" Content="Throw With Inner Exception" />
+                <Button Click="OnUnhandledExceptionClick" Content="Throw Unhandled Exception" />                
+                
             </StackPanel>
 
 
