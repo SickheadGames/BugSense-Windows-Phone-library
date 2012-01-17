@@ -6,5 +6,7 @@ obj
 _ReSharper*/
 *.ReSharper.*
 Skroutz_Report.htm
-.hgingore
+.hgignore
 .hg/*
+*.user
+*.suo
