@@ -15,5 +15,10 @@ namespace BugSense {
         /// Body of notification popup
         /// </summary>
         public string Text { get; set; }
+
+        /// <summary>
+        /// If true then the error is sent even when the Debugger is attached. Default false.
+        /// </summary>
+        public bool HandleWhileDebugging { get; set; }
     }
 }

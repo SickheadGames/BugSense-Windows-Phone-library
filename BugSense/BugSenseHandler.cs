@@ -166,6 +166,9 @@ namespace BugSense {
             args.Handled = e.Handled;
             if (e.Cancel)
                 return;
+            if (Debugger.IsAttached && !_options.HandleWhileDebugging)
+                return;
+
             Handle(args.ExceptionObject, e.Comment, _options, !args.Handled);
             args.Handled = true;
         }
@@ -178,7 +181,7 @@ namespace BugSense {
                 return;
             }
             _lastMethodHandledCalledAt = DateTime.Now;
-            if (Debugger.IsAttached)//Dont send the error
+            if (Debugger.IsAttached && !options.HandleWhileDebugging)//Dont send the error
                 return;
             var request = new BugSenseRequest(e.ToBugSenseEx(comment), GetEnvironment());
             if (throwExceptionAfterComplete) {
@@ -228,7 +231,7 @@ namespace BugSense {
                 EventHandler<ResultCompletionEventArgs> callback = (sender, args) => Scheduler.Dispatcher.Schedule(() => {
                     //OnUnhandledExceptionSent(eventArgs);
                     //if (eventArgs.ExitApp)
-                        throw new BugSenseUnhandledException();
+                    throw new BugSenseUnhandledException();
                 });
                 Coroutine.BeginExecute(tasks.GetEnumerator(), callback: throwAfterComplete ? callback : null);
             });
