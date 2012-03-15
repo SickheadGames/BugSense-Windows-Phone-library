@@ -106,13 +106,13 @@ namespace BugSense {
             var appDetails = Helpers.GetVersion();
             _appName = appDetails[0];//nameHelper.Name;
             _appVersion = appDetails[1];//nameHelper.Version.ToString();
-
-            //Attaching the handler
-            _application.UnhandledException += OnUnhandledException;
-
             //Proccess errors from previous crashes
             var tasks = new List<IResult> { new ProccessErrorsTask() };
             Coroutine.BeginExecute(tasks.GetEnumerator());
+
+            //Attaching the handler
+            if (_application != null)
+                _application.UnhandledException += OnUnhandledException;
 
             //Just in case Init is called again
             _initialized = true;
