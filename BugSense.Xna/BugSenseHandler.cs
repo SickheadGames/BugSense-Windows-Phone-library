@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.IO.IsolatedStorage;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -10,10 +9,19 @@ using System.Reflection;
 using System.Text;
 using BugSense.Extensions;
 using BugSense.Internal;
+
+using Microsoft.Xna.Framework;
+
+#if WINDOWS_PHONE
+using System.IO.IsolatedStorage;
+
 using Microsoft.Phone.Info;
 using Microsoft.Phone.Reactive;
-using Microsoft.Xna.Framework;
 using ServiceStack.Text;
+#endif
+
+#if WINDOWS_RT
+#endif
 
 namespace BugSense {
     public sealed class BugSenseHandler {
@@ -206,7 +214,11 @@ namespace BugSense {
                 var request = WebRequest.CreateHttp(G.URL);
                 request.Method = "POST";
                 request.ContentType = "application/x-www-form-urlencoded";
-                request.UserAgent = "WP7";
+#if WINDOWS_RT
+                request.Headers["User-Agent"] = "WinRT";
+#else
+                request.UserAgent = "WP7";                
+#endif
                 request.Headers["X-BugSense-Api-Key"] = G.API_KEY;
                 string contextFilePath = filePath;
                 request.BeginGetRequestStream(ar => {
