@@ -9,7 +9,6 @@ using System.Reflection;
 using System.Text;
 using BugSense.Extensions;
 using BugSense.Internal;
-
 using Microsoft.Xna.Framework;
 
 #if WINDOWS_PHONE
@@ -21,6 +20,8 @@ using ServiceStack.Text;
 #endif
 
 #if WINDOWS_RT
+using System.Threading.Tasks;
+using Windows.Storage;
 #endif
 
 namespace BugSense {
@@ -197,13 +198,11 @@ namespace BugSense {
             return environment;
         }
 
-        private void ProccessFile(string filePath, IsolatedStorageFile storage)
+        private static void ProccessFile(Stream fileStream, string filePath)
         {
-            using (var fileStream = storage.OpenFile(filePath, FileMode.Open)) {
-                using (StreamReader sr = new StreamReader(fileStream)) {
-                    string data = sr.ReadToEnd();
-                    ExecuteRequestAsync(data, filePath);
-                }
+            using (StreamReader sr = new StreamReader(fileStream)) {
+                string data = sr.ReadToEnd();
+                ExecuteRequestAsync(data, filePath);
             }
         }
 
@@ -230,11 +229,24 @@ namespace BugSense {
                         request.BeginGetResponse(a => {
                             try {
                                 request.EndGetResponse(a);
+
+#if WINDOWS_RT
+
+                                Task.Run(
+                                    async () =>
+                                    {
+                                        var file = await ApplicationData.Current.LocalFolder.GetFileAsync(contextFilePath);
+                                        file.DeleteAsync(StorageDeleteOption.PermanentDelete);
+
+                                    }).Wait();
+                               
+#else
                                 //Error sent! Delete it!
                                 using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
                                     if (storage.FileExists(contextFilePath))
                                         storage.DeleteFile(contextFilePath);
                                 }
+#endif
                             }
                             catch { }
                         }, null);
@@ -250,6 +262,25 @@ namespace BugSense {
         private static void SaveToFile(string postData)
         {
             try {
+#if WINDOWS_RT
+
+                Task.Run(
+                    async () =>
+                    {
+                        var folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync(s_FolderName, CreationCollisionOption.OpenIfExists);
+
+                        var fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
+                        var file = await folder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
+
+                        using (var fileStream = await file.OpenStreamForWriteAsync())
+                        {
+                            using (var sw = new StreamWriter(fileStream))
+                                sw.Write(postData);
+                        }
+
+                    }).Wait();
+
+#else
                 using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
                     if (!storage.DirectoryExists(s_FolderName))
                         storage.CreateDirectory(s_FolderName);
@@ -261,6 +292,7 @@ namespace BugSense {
                         }
                     }
                 }
+#endif
             }
             catch { /* Getting in here means the phone is about to explode */
             }
@@ -269,6 +301,29 @@ namespace BugSense {
         private void ProccessSavedErrors()
         {
             try {
+#if WINDOWS_RT
+
+                Task.Run(
+                    async () =>
+                    {
+                        var folder = await ApplicationData.Current.LocalFolder.GetFolderAsync(s_FolderName);
+                        var files = (await folder.GetFilesAsync()).OrderByDescending( s => s.Name ).ToList();
+
+                        int counter = 0;
+                        foreach (var file in files)
+                        {
+                            // If there are more exceptions in the pool we just delete them.
+                            if (counter < s_MaxExceptions)
+                                using (var fileStream = await file.OpenStreamForReadAsync())
+                                    ProccessFile(fileStream, file.Path);
+                            else
+                                file.DeleteAsync(StorageDeleteOption.PermanentDelete);
+
+                            counter++;
+                        }
+                    });
+
+#else
                 using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
                     if (storage.DirectoryExists(s_FolderName)) {
                         var fileNames = storage.GetFileNames(s_FolderName + "\\*").OrderByDescending(s => s).ToList();
@@ -279,7 +334,8 @@ namespace BugSense {
                             string filePath = Path.Combine(s_FolderName, fileName);
                             //If there are more exceptions in the pool we just delete them.
                             if (counter < s_MaxExceptions)
-                                ProccessFile(filePath, storage);
+                                using (var fileStream = storage.OpenFile(filePath, FileMode.Open)) {
+                                    ProccessFile(fileStream, filePath);
                             else
                                 storage.DeleteFile(filePath);
                             counter++;
@@ -287,6 +343,7 @@ namespace BugSense {
                         }
                     }
                 }
+#endif
             }
             //If this fails it probably due to an issue with the Isolated Storage.
             catch (Exception e) { /* Swallow like a fish - Not much that we can do here */}
