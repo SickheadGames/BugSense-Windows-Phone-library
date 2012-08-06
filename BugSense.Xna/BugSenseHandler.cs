@@ -22,6 +22,9 @@ using ServiceStack.Text;
 #if WINDOWS_RT
 using System.Threading.Tasks;
 using Windows.Storage;
+using Windows.Graphics.Display;
+using System.Runtime.Serialization.Json;
+using Windows.ApplicationModel.Core;
 #endif
 
 namespace BugSense {
@@ -103,7 +106,11 @@ namespace BugSense {
             G.API_KEY = apiKey;
 
             //Getting version and app details
+#if WINDOWS_RT
+            var nameHelper = new AssemblyName(application.GetType().GetTypeInfo().Assembly.FullName);
+#else
             var nameHelper = new AssemblyName(Assembly.GetCallingAssembly().FullName);
+#endif
             _appVersion = nameHelper.Version.ToString();
             _appName = nameHelper.Name;
 
@@ -140,7 +147,11 @@ namespace BugSense {
             string json = GetJson(request);
             if (!string.IsNullOrEmpty(json)) {
                 SaveToFile(json);
+#if WINDOWS_RT
+                Task.Run( () => ProccessSavedErrors() );
+#else
                 Scheduler.NewThread.Schedule(ProccessSavedErrors);
+#endif
             }
         }
 
@@ -153,7 +164,11 @@ namespace BugSense {
             try {
                 Log("Sending json ");
                 using (MemoryStream ms = new MemoryStream()) {
+#if WINDOWS_RT
+                    new DataContractJsonSerializer(typeof(BugSenseRequest)).WriteObject(ms,request);
+#else
                     JsonSerializer.SerializeToStream(request, typeof(BugSenseRequest), ms);
+#endif
                     var array = ms.ToArray();
                     string json = Encoding.UTF8.GetString(array, 0, array.Length);
                     json = json.Replace("ScreenDpi", "screen_dpi(x:y)")
@@ -174,8 +189,18 @@ namespace BugSense {
             AppEnvironment environment = new AppEnvironment();
             environment.appname = _appName;
             environment.appver = _appVersion;
+#if WINDOWS_RT
+            // TODO: Currently there is no way to get the OS version
+            // even for error logging purposes... which i suspect will
+            // change before too long.
+            environment.osver = "Windows 8 Metro";
+#else
             environment.osver = Environment.OSVersion.Version.ToString();
+#endif
             string result = string.Empty;
+
+#if WINDOWS_RT
+#else
             object manufacturer;
             //TODO: Find model
             if (DeviceExtendedProperties.TryGetValue("DeviceManufacturer", out manufacturer))
@@ -183,6 +208,7 @@ namespace BugSense {
             object theModel;
             if (DeviceExtendedProperties.TryGetValue("DeviceName", out theModel))
                 result = result + theModel;
+#endif
 
             environment.phone = result;
             try {
@@ -192,9 +218,13 @@ namespace BugSense {
             catch { /* If the exception is not in the UIThread we don't have access to above */ }
 
             environment.gps_on = "unavailable";
+#if WINDOWS_RT
+            environment.ScreenDpi = DisplayProperties.LogicalDpi.ToString();
+#else
             environment.ScreenDpi = "unavailable";
+#endif
             environment.ScreenOrientation = _application.Window.CurrentOrientation.ToString();
-            environment.wifi_on = NetworkInterface.GetIsNetworkAvailable().ToString(CultureInfo.InvariantCulture);
+            environment.wifi_on = NetworkInterface.GetIsNetworkAvailable() ? bool.TrueString : bool.FalseString;
             return environment;
         }
 
@@ -352,7 +382,11 @@ namespace BugSense {
         private void Log(string message)
         {
             //TODO: Implement better VS logging
+#if WINDOWS_RT
+            Debug.WriteLine("BugSense: " + message);
+#else
             Debugger.Log(3, "BugSense", message);
+#endif
         }
 
         #endregion
