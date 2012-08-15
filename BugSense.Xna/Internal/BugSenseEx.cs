@@ -67,7 +67,11 @@ namespace BugSense.Internal {
         public BugSenseClient()
         {
             version = "bugsense-version-0.6";
+#if iOS
+            name = "bugsense-iOS";
+#else
             name = "bugsense-wp7";
+#endif
         }
 
         [DataMember(Name = "version")]
