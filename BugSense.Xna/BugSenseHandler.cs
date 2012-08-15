@@ -19,6 +19,12 @@ using Microsoft.Phone.Reactive;
 using ServiceStack.Text;
 #endif
 
+#if iOS
+using ServiceStack.Text;
+using MonoTouch.Foundation;
+using MonoTouch.UIKit;
+#endif
+
 #if WINDOWS_RT
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -70,6 +76,7 @@ namespace BugSense {
         private bool _initialized;
         private string _appVersion;
         private string _appName;
+        private static string _dataPath;
         private Game _application;
         public event EventHandler<BugSenseUnhandledExceptionEventArgs> UnhandledException;
 
@@ -113,7 +120,14 @@ namespace BugSense {
 #endif
             _appVersion = nameHelper.Version.ToString();
             _appName = nameHelper.Name;
-
+            
+#if iOS
+            _dataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), s_FolderName);
+            
+            if (!Directory.Exists(_dataPath))
+                Directory.CreateDirectory(_dataPath);
+#endif
+            
             //Get a list with exceptions stored from previoys crashes
             ProccessSavedErrors();
 
@@ -149,6 +163,9 @@ namespace BugSense {
                 SaveToFile(json);
 #if WINDOWS_RT
                 Task.Run( () => ProccessSavedErrors() );
+#elif iOS
+                // Just do it on the main thread for now.
+                UIApplication.SharedApplication.BeginInvokeOnMainThread(ProccessSavedErrors);
 #else
                 Scheduler.NewThread.Schedule(ProccessSavedErrors);
 #endif
@@ -165,7 +182,7 @@ namespace BugSense {
                 Log("Sending json ");
                 using (MemoryStream ms = new MemoryStream()) {
 #if WINDOWS_RT
-                    new DataContractJsonSerializer(typeof(BugSenseRequest)).WriteObject(ms,request);
+                    new JsonSerializer(typeof(BugSenseRequest)).WriteObject(ms,request);
 #else
                     JsonSerializer.SerializeToStream(request, typeof(BugSenseRequest), ms);
 #endif
@@ -199,9 +216,14 @@ namespace BugSense {
 #endif
             string result = string.Empty;
 
-#if WINDOWS_RT
-#else
             object manufacturer;
+            
+#if WINDOWS_RT
+            
+            
+#elif iOS
+            result = DeviceIdentifier.Version.ToString();
+#else
             //TODO: Find model
             if (DeviceExtendedProperties.TryGetValue("DeviceManufacturer", out manufacturer))
                 result = manufacturer.ToString();
@@ -211,7 +233,8 @@ namespace BugSense {
 #endif
 
             environment.phone = result;
-            try {
+            try
+            {
                 environment.ScreenHeight = _application.Window.ClientBounds.Height;
                 environment.ScreenWidth = _application.Window.ClientBounds.Width;
             }
@@ -230,7 +253,8 @@ namespace BugSense {
 
         private static void ProccessFile(Stream fileStream, string filePath)
         {
-            using (StreamReader sr = new StreamReader(fileStream)) {
+            using (StreamReader sr = new StreamReader(fileStream))
+            {
                 string data = sr.ReadToEnd();
                 ExecuteRequestAsync(data, filePath);
             }
@@ -239,26 +263,34 @@ namespace BugSense {
         private static void ExecuteRequestAsync(string errorJson, string filePath)
         {
             try {
+                
                 errorJson = "data=" + Uri.EscapeDataString(errorJson);
-                var request = WebRequest.CreateHttp(G.URL);
+                var request = HttpWebRequest.Create(new Uri(G.URL)) as HttpWebRequest;
                 request.Method = "POST";
                 request.ContentType = "application/x-www-form-urlencoded";
 #if WINDOWS_RT
                 request.Headers["User-Agent"] = "WinRT";
+#elif iOS
+                request.UserAgent = "iOS";
 #else
                 request.UserAgent = "WP7";                
 #endif
                 request.Headers["X-BugSense-Api-Key"] = G.API_KEY;
                 string contextFilePath = filePath;
-                request.BeginGetRequestStream(ar => {
-                    try {
+                request.BeginGetRequestStream(ar =>
+                {
+                    try
+                    {
                         var requestStream = request.EndGetRequestStream(ar);
-                        using (var sw = new StreamWriter(requestStream)) {
+                        using (var sw = new StreamWriter(requestStream))
+                        {
                             sw.Write(ar.AsyncState);
                         }
-                        request.BeginGetResponse(a => {
+                        
+                        request.BeginGetResponse(a =>
+                        {
                             try {
-                                request.EndGetResponse(a);
+                                var response = request.EndGetResponse(a);
 
 #if WINDOWS_RT
 
@@ -272,21 +304,26 @@ namespace BugSense {
                                
 #else
                                 //Error sent! Delete it!
-                                using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
-                                    if (storage.FileExists(contextFilePath))
-                                        storage.DeleteFile(contextFilePath);
-                                }
+                                    if (File.Exists(contextFilePath))
+                                        File.Delete(contextFilePath);
 #endif
                             }
-                            catch { }
+                            catch (Exception exc)
+                            {
+                                exc = exc;
+                            }
                         }, null);
                     }
-                    catch {
-
+                    catch (Exception ex)
+                    {
+                        ex = ex;
                     }
                 }, errorJson);
             }
-            catch { /* Error is already saved so next time the app starts will try to send it again*/ }
+            catch (Exception e)
+            {
+                /* Error is already saved so next time the app starts will try to send it again*/
+            }
         }
 
         private static void SaveToFile(string postData)
@@ -310,11 +347,22 @@ namespace BugSense {
 
                     }).Wait();
 
+#elif iOS
+                string fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
+                var fullPath = BugSenseHandler.getPath(fileName);
+                using (var fs = new FileStream(fullPath, FileMode.Create))
+                {
+                    using (var bw = new BinaryWriter(fs))
+                    {
+                        bw.Write(postData);
+                    }
+                }
 #else
+                
                 using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
                     if (!storage.DirectoryExists(s_FolderName))
                         storage.CreateDirectory(s_FolderName);
-
+                    
                     string fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
                     using (var fileStream = storage.CreateFile(Path.Combine(s_FolderName, fileName))) {
                         using (StreamWriter sw = new StreamWriter(fileStream)) {
@@ -324,8 +372,16 @@ namespace BugSense {
                 }
 #endif
             }
-            catch { /* Getting in here means the phone is about to explode */
+            catch (Exception e)
+            {
+                e = e;
+                /* Getting in here means the phone is about to explode */
             }
+        }
+        
+        private static string getPath(string fileName)
+        {
+            return Path.Combine(_dataPath, fileName);
         }
 
         private void ProccessSavedErrors()
@@ -352,31 +408,63 @@ namespace BugSense {
                             counter++;
                         }
                     });
+                
+#elif iOS
+                    var path = getPath(string.Empty);
+                    
+                    var fileNames = Directory.GetFiles(path);
+                    
+                    foreach (var file in fileNames)
+                    {
+                        
+                        // don't mess around with the lame DS_Store file
+                        if (file.Contains("DS_Store"))
+                            continue;
+                        
+                        int counter = 0;
+                        
+                        //If there are more exceptions in the pool we just delete them.
+                        if (counter < s_MaxExceptions)
+                        {
+                            using (var fileStream = new FileStream(file, FileMode.Open))
+                            {
+                                ProccessFile(fileStream, file);
+                            }
+                        }    
+                        else
+                            File.Delete(file);
+                        
+                        counter++;
+                    }   
 
 #else
-                using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
-                    if (storage.DirectoryExists(s_FolderName)) {
-                        var fileNames = storage.GetFileNames(s_FolderName + "\\*").OrderByDescending(s => s).ToList();
-                        int counter = 0;
-                        foreach (var fileName in fileNames) {
-                            if (string.IsNullOrEmpty(fileName))
-                                continue;
-                            string filePath = Path.Combine(s_FolderName, fileName);
-                            //If there are more exceptions in the pool we just delete them.
-                            if (counter < s_MaxExceptions)
+                
+                    using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
+                        if (storage.DirectoryExists(s_FolderName)) {
+                            var fileNames = storage.GetFileNames(s_FolderName + "\\*").OrderByDescending(s => s).ToList();
+                            int counter = 0;
+                            foreach (var fileName in fileNames) {
+                                if (string.IsNullOrEmpty(fileName))
+                                    continue;
+                                string filePath = Path.Combine(s_FolderName, fileName);
+                                //If there are more exceptions in the pool we just delete them.
+                                if (counter < s_MaxExceptions)
                                 using (var fileStream = storage.OpenFile(filePath, FileMode.Open)) {
                                     ProccessFile(fileStream, filePath);
-                            else
-                                storage.DeleteFile(filePath);
-                            counter++;
-                            //
-                        }
-                    }
-                }
+                                    else
+                                        storage.DeleteFile(filePath);
+                                    counter++;
+                                    //
+                                }
+                            }
 #endif
             }
             //If this fails it probably due to an issue with the Isolated Storage.
-            catch (Exception e) { /* Swallow like a fish - Not much that we can do here */}
+            catch (Exception e)
+            {
+                e = e;
+                /* Swallow like a fish - Not much that we can do here */
+            }
         }
 
         private void Log(string message)

@@ -1,0 +1,108 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGame.Framework.iOS", "..\MonoGame\MonoGame.Framework\MonoGame.Framework.iOS.csproj", "{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lidgren.Network.iOS", "..\MonoGame\ThirdParty\Lidgren.Network\Lidgren.Network.iOS.csproj", "{734EAA48-F1CA-481A-B391-0285BC0E8B40}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MonoGame.Samples.ChaseAndEvade", "..\MonoGame\Samples\iOS\ChaseAndEvade\MonoGame.Samples.ChaseAndEvade.csproj", "{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BugSense.iOS", "BugSense.Xna\BugSense.iOS.csproj", "{5652D5F0-ED59-452B-B135-985394D30818}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+		Debug|iPhoneSimulator = Debug|iPhoneSimulator
+		Release|iPhoneSimulator = Release|iPhoneSimulator
+		Debug|iPhone = Debug|iPhone
+		Release|iPhone = Release|iPhone
+		Shipping|iPhone = Shipping|iPhone
+		Shipping|iPhoneSimulator = Shipping|iPhoneSimulator
+		Distribution|iPhone = Distribution|iPhone
+		Distribution|iPhoneSimulator = Distribution|iPhoneSimulator
+		Ad-Hoc|iPhone = Ad-Hoc|iPhone
+		AppStore|iPhone = AppStore|iPhone
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Debug|iPhone.ActiveCfg = Debug|iPhone
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Debug|iPhone.Build.0 = Debug|iPhone
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Debug|iPhoneSimulator.ActiveCfg = Debug|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Debug|iPhoneSimulator.Build.0 = Debug|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Debug|x86.ActiveCfg = Debug|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Debug|x86.Build.0 = Debug|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Distribution|iPhone.ActiveCfg = Distribution|iPhone
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Distribution|iPhone.Build.0 = Distribution|iPhone
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Distribution|iPhoneSimulator.ActiveCfg = Distribution|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Distribution|iPhoneSimulator.Build.0 = Distribution|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Release|iPhone.ActiveCfg = Release|iPhone
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Release|iPhone.Build.0 = Release|iPhone
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Release|iPhoneSimulator.ActiveCfg = Release|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Release|iPhoneSimulator.Build.0 = Release|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Release|x86.ActiveCfg = Release|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Release|x86.Build.0 = Release|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Shipping|iPhone.ActiveCfg = Debug|iPhone
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Shipping|iPhone.Build.0 = Debug|iPhone
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Shipping|iPhoneSimulator.ActiveCfg = Debug|iPhoneSimulator
+		{1557EE13-80AB-4E4C-9C10-9CBFC8E727C3}.Shipping|iPhoneSimulator.Build.0 = Debug|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Ad-Hoc|iPhone.ActiveCfg = Ad-Hoc|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Ad-Hoc|iPhone.Build.0 = Ad-Hoc|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.AppStore|iPhone.ActiveCfg = AppStore|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.AppStore|iPhone.Build.0 = AppStore|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Debug|iPhone.ActiveCfg = Debug|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Debug|iPhone.Build.0 = Debug|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Debug|iPhoneSimulator.ActiveCfg = Debug|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Debug|iPhoneSimulator.Build.0 = Debug|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Debug|x86.ActiveCfg = Debug|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Debug|x86.Build.0 = Debug|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Distribution|iPhone.ActiveCfg = Debug|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Distribution|iPhone.Build.0 = Debug|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Distribution|iPhoneSimulator.ActiveCfg = Debug|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Distribution|iPhoneSimulator.Build.0 = Debug|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Release|iPhone.ActiveCfg = Release|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Release|iPhone.Build.0 = Release|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Release|iPhoneSimulator.ActiveCfg = Release|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Release|iPhoneSimulator.Build.0 = Release|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Release|x86.ActiveCfg = Release|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Release|x86.Build.0 = Release|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Shipping|iPhone.ActiveCfg = Debug|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Shipping|iPhone.Build.0 = Debug|iPhone
+		{5652D5F0-ED59-452B-B135-985394D30818}.Shipping|iPhoneSimulator.ActiveCfg = Debug|iPhoneSimulator
+		{5652D5F0-ED59-452B-B135-985394D30818}.Shipping|iPhoneSimulator.Build.0 = Debug|iPhoneSimulator
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Debug|iPhone.ActiveCfg = Debug|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Debug|iPhone.Build.0 = Debug|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Debug|iPhoneSimulator.ActiveCfg = Debug|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Debug|iPhoneSimulator.Build.0 = Debug|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Debug|x86.Build.0 = Debug|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Release|iPhone.ActiveCfg = Release|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Release|iPhone.Build.0 = Release|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Release|iPhoneSimulator.ActiveCfg = Release|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Release|iPhoneSimulator.Build.0 = Release|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Release|x86.ActiveCfg = Release|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Release|x86.Build.0 = Release|Any CPU
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Shipping|iPhone.ActiveCfg = Shipping|iPhone
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Shipping|iPhone.Build.0 = Shipping|iPhone
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Shipping|iPhoneSimulator.ActiveCfg = Shipping|iPhoneSimulator
+		{734EAA48-F1CA-481A-B391-0285BC0E8B40}.Shipping|iPhoneSimulator.Build.0 = Shipping|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Debug|iPhone.ActiveCfg = Debug|iPhone
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Debug|iPhone.Build.0 = Debug|iPhone
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Debug|iPhoneSimulator.ActiveCfg = Debug|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Debug|iPhoneSimulator.Build.0 = Debug|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Debug|x86.ActiveCfg = Debug|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Debug|x86.Build.0 = Debug|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Release|iPhone.ActiveCfg = Release|iPhone
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Release|iPhone.Build.0 = Release|iPhone
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Release|iPhoneSimulator.ActiveCfg = Release|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Release|iPhoneSimulator.Build.0 = Release|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Release|x86.ActiveCfg = Release|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Release|x86.Build.0 = Release|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Shipping|iPhone.ActiveCfg = Shipping|iPhone
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Shipping|iPhone.Build.0 = Shipping|iPhone
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Shipping|iPhoneSimulator.ActiveCfg = Shipping|iPhoneSimulator
+		{DB8508BB-9849-4CC2-BC0F-8EB5DACB3C47}.Shipping|iPhoneSimulator.Build.0 = Shipping|iPhoneSimulator
+	EndGlobalSection
+	GlobalSection(MonoDevelopProperties) = preSolution
+		StartupItem = ..\MonoGame\Samples\iOS\ChaseAndEvade\MonoGame.Samples.ChaseAndEvade.csproj
+	EndGlobalSection
+EndGlobal
