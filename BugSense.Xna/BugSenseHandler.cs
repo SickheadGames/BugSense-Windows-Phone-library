@@ -133,39 +133,59 @@ namespace BugSense {
 
             //Just in case Init is called again
             _initialized = true;
+            
+            // Setup our unhandled exception handler.
+            
+            AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+        }
+        
+        private void OnUnhandledException(object sender, UnhandledExceptionEventArgs a)
+        {
+            var ex = (Exception)a.ExceptionObject;
+            var bsException = ex.ToBugSenseEx();
+            var bugsenseArgs = new BugSenseUnhandledExceptionEventArgs(ex);
+            
+            var handler = UnhandledException;
+            if (handler != null)
+                handler(this, bugsenseArgs);
+            
+            // Cancel reporting if we've been told to
+            if (bugsenseArgs.Cancel)
+                return;
+            
+            // Report the exception
+            LogError(ex, bugsenseArgs.Comment);
         }
 
         #endregion
 
         #region [ Private Core Methods ]
 
-        //private void OnBugSenseUnhandledException(BugSenseUnhandledExceptionEventArgs e)
-        //{
-        //    EventHandler<BugSenseUnhandledExceptionEventArgs> handler = UnhandledException;
-        //    if (handler != null)
-        //        handler(this, e);
-        //}
-
         private void Handle(Exception e, string comment)
         {
             var request = new BugSenseRequest(e.ToBugSenseEx(comment), GetEnvironment());
-            try {
+            try
+            {
                 Send(request);
             }
-            catch (Exception ex1) {
+            catch (Exception ex1)
+            {
             }
         }
 
         private void Send(BugSenseRequest request)
         {
             string json = GetJson(request);
-            if (!string.IsNullOrEmpty(json)) {
+            if (!string.IsNullOrEmpty(json))
+            {
                 SaveToFile(json);
 #if WINDOWS_RT
                 Task.Run( () => ProccessSavedErrors() );
 #elif iOS
-                // Just do it on the main thread for now.
-                UIApplication.SharedApplication.BeginInvokeOnMainThread(ProccessSavedErrors);
+                // TODO: Thread this.
+                
+                ProccessSavedErrors();
+                //UIApplication.SharedApplication.BeginInvokeOnMainThread(ProccessSavedErrors);
 #else
                 Scheduler.NewThread.Schedule(ProccessSavedErrors);
 #endif
@@ -178,9 +198,11 @@ namespace BugSense {
 
         private string GetJson(BugSenseRequest request)
         {
-            try {
+            try
+            {
                 Log("Sending json ");
-                using (MemoryStream ms = new MemoryStream()) {
+                using (MemoryStream ms = new MemoryStream())
+                {
 #if WINDOWS_RT
                     new JsonSerializer(typeof(BugSenseRequest)).WriteObject(ms,request);
 #else
@@ -195,7 +217,8 @@ namespace BugSense {
                     return json;
                 }
             }
-            catch {
+            catch
+            {
                 Log("Error during BugSenseRequest serialization");
                 return string.Empty;
             }
@@ -211,6 +234,8 @@ namespace BugSense {
             // even for error logging purposes... which i suspect will
             // change before too long.
             environment.osver = "Windows 8 Metro";
+#elif iOS
+            environment.osver = UIDevice.CurrentDevice.SystemVersion;
 #else
             environment.osver = Environment.OSVersion.Version.ToString();
 #endif
@@ -219,8 +244,6 @@ namespace BugSense {
             object manufacturer;
             
 #if WINDOWS_RT
-            
-            
 #elif iOS
             result = DeviceIdentifier.Version.ToString();
 #else
@@ -304,8 +327,8 @@ namespace BugSense {
                                
 #else
                                 //Error sent! Delete it!
-                                    if (File.Exists(contextFilePath))
-                                        File.Delete(contextFilePath);
+                                if (File.Exists(contextFilePath))
+                                    File.Delete(contextFilePath);
 #endif
                             }
                             catch (Exception exc)
@@ -352,9 +375,9 @@ namespace BugSense {
                 var fullPath = BugSenseHandler.getPath(fileName);
                 using (var fs = new FileStream(fullPath, FileMode.Create))
                 {
-                    using (var bw = new BinaryWriter(fs))
+                    using (var sw = new StreamWriter(fs))
                     {
-                        bw.Write(postData);
+                        sw.Write(postData);
                     }
                 }
 #else
@@ -416,7 +439,6 @@ namespace BugSense {
                     
                     foreach (var file in fileNames)
                     {
-                        
                         // don't mess around with the lame DS_Store file
                         if (file.Contains("DS_Store"))
                             continue;
@@ -462,7 +484,6 @@ namespace BugSense {
             //If this fails it probably due to an issue with the Isolated Storage.
             catch (Exception e)
             {
-                e = e;
                 /* Swallow like a fish - Not much that we can do here */
             }
         }

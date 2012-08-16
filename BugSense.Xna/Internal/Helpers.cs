@@ -6,8 +6,10 @@ namespace BugSense.Extensions {
     internal static class Helpers {
         public static BugSenseEx ToBugSenseEx(this Exception ex)
         {
-            return ToBugSenseEx(ex, null);
+            return ToBugSenseEx(ex, string.Empty);
         }
+        
+        
         public static BugSenseEx ToBugSenseEx(this Exception ex, string comment)
         {
             BugSenseEx be = new BugSenseEx();
