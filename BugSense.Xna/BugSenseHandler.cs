@@ -94,7 +94,7 @@ namespace BugSense {
         {
             //if (Instance == null || !Instance._initialized)
             //    throw new InvalidOperationException("BugSense Handler is not initialized.");
-            Instance.Handle(ex, comment);
+            HandleError(ex, comment);
         }
 
         /// <summary>
@@ -161,12 +161,12 @@ namespace BugSense {
 
         #region [ Private Core Methods ]
 
-        private void Handle(Exception e, string comment)
+        public static void HandleError(Exception e, string comment)
         {
-            var request = new BugSenseRequest(e.ToBugSenseEx(comment), GetEnvironment());
+            var request = new BugSenseRequest(e.ToBugSenseEx(comment), Instance.GetEnvironment());
             try
             {
-                Send(request);
+                Instance.Send(request);
             }
             catch (Exception ex1)
             {
@@ -224,7 +224,7 @@ namespace BugSense {
             }
         }
 
-        private AppEnvironment GetEnvironment()
+        internal AppEnvironment GetEnvironment()
         {
             AppEnvironment environment = new AppEnvironment();
             environment.appname = _appName;
