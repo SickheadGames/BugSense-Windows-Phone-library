@@ -9,11 +9,10 @@ using System.Reflection;
 using System.Text;
 using BugSense.Extensions;
 using BugSense.Internal;
-using Microsoft.Xna.Framework;
 
 #if WINDOWS_PHONE
 using System.IO.IsolatedStorage;
-
+using System.Windows;
 using Microsoft.Phone.Info;
 using Microsoft.Phone.Reactive;
 using ServiceStack.Text;
@@ -34,6 +33,7 @@ using Windows.ApplicationModel.Core;
 using Windows.UI.Xaml;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using Windows.Foundation;
 #endif
 
 namespace BugSense {
@@ -115,8 +115,6 @@ namespace BugSense {
             if (_initialized)
                 return;
 
-            //General Initializations
-            //_application = application;
             G.API_KEY = apiKey;
 
             //Getting version and app details
@@ -142,14 +140,18 @@ namespace BugSense {
             _initialized = true;
             
             // Setup our unhandled exception handler.
-#if WINDOWS_RT
+#if WINDOWS_RT || WINDOWS_PHONE
             Application.Current.UnhandledException += OnUnhandledException;
 #else
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
 #endif
         }
         
+#if WINDOWS_PHONE
+        private void OnUnhandledException(object sender, ApplicationUnhandledExceptionEventArgs a)
+#else
         private void OnUnhandledException(object sender, UnhandledExceptionEventArgs a)
+#endif
         {
 #if WINDOWS_RT
             var ex = (Exception)a.Exception;
@@ -404,8 +406,7 @@ namespace BugSense {
                 {
                     if (!storage.DirectoryExists(s_FolderName))
                         storage.CreateDirectory(s_FolderName);
-                    
-                    string fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
+
                     using (var fileStream = storage.CreateFile(Path.Combine(s_FolderName, fileName)))
                     {
                         using (StreamWriter sw = new StreamWriter(fileStream))
