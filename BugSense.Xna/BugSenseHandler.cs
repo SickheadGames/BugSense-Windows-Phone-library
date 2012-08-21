@@ -31,6 +31,9 @@ using Windows.Storage;
 using Windows.Graphics.Display;
 using System.Runtime.Serialization.Json;
 using Windows.ApplicationModel.Core;
+using Windows.UI.Xaml;
+using System.Net.Http;
+using System.Net.Http.Headers;
 #endif
 
 namespace BugSense {
@@ -77,7 +80,11 @@ namespace BugSense {
         private string _appVersion;
         private string _appName;
         private static string _dataPath;
-        private Game _application;
+
+        public string ScreenOrientation = string.Empty;
+        public Point ScreenSize = new Point();
+
+        //private Game _application;
         public event EventHandler<BugSenseUnhandledExceptionEventArgs> UnhandledException;
 
         #endregion
@@ -103,18 +110,18 @@ namespace BugSense {
         /// <param name="application">The Windows Phone application.</param>
         /// <param name="apiKey">The Api Key that can be retrieved at bugsense.com</param>
         /// <param name="options">Optional Options</param>
-        public void Init(Game application, string apiKey)
+        public void Init(string apiKey)
         {
             if (_initialized)
                 return;
 
             //General Initializations
-            _application = application;
+            //_application = application;
             G.API_KEY = apiKey;
 
             //Getting version and app details
 #if WINDOWS_RT
-            var nameHelper = new AssemblyName(application.GetType().GetTypeInfo().Assembly.FullName);
+            var nameHelper = new AssemblyName(Application.Current.GetType().GetTypeInfo().Assembly.FullName);
 #else
             var nameHelper = new AssemblyName(Assembly.GetCallingAssembly().FullName);
 #endif
@@ -135,13 +142,21 @@ namespace BugSense {
             _initialized = true;
             
             // Setup our unhandled exception handler.
-            
+#if WINDOWS_RT
+            Application.Current.UnhandledException += OnUnhandledException;
+#else
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+#endif
         }
         
         private void OnUnhandledException(object sender, UnhandledExceptionEventArgs a)
         {
+#if WINDOWS_RT
+            var ex = (Exception)a.Exception;
+#else
             var ex = (Exception)a.ExceptionObject;
+#endif
+            
             var bsException = ex.ToBugSenseEx();
             var bugsenseArgs = new BugSenseUnhandledExceptionEventArgs(ex);
             
@@ -161,6 +176,9 @@ namespace BugSense {
 
         #region [ Private Core Methods ]
 
+        /// <summary>
+        /// Make sure to set screen size/orientation before calling this!
+        /// </summary>
         public static void HandleError(Exception e, string comment)
         {
             var request = new BugSenseRequest(e.ToBugSenseEx(comment), Instance.GetEnvironment());
@@ -204,7 +222,7 @@ namespace BugSense {
                 using (MemoryStream ms = new MemoryStream())
                 {
 #if WINDOWS_RT
-                    new JsonSerializer(typeof(BugSenseRequest)).WriteObject(ms,request);
+                    new DataContractJsonSerializer(typeof(BugSenseRequest)).WriteObject(ms, request);
 #else
                     JsonSerializer.SerializeToStream(request, typeof(BugSenseRequest), ms);
 #endif
@@ -256,12 +274,11 @@ namespace BugSense {
 #endif
 
             environment.phone = result;
-            try
-            {
-                environment.ScreenHeight = _application.Window.ClientBounds.Height;
-                environment.ScreenWidth = _application.Window.ClientBounds.Width;
-            }
-            catch { /* If the exception is not in the UIThread we don't have access to above */ }
+
+            Debug.Assert(ScreenSize.X * ScreenSize.Y > 0, "Screen size was not set.");
+
+            environment.ScreenWidth = ScreenSize.X;
+            environment.ScreenHeight = ScreenSize.Y;
 
             environment.gps_on = "unavailable";
 #if WINDOWS_RT
@@ -269,7 +286,7 @@ namespace BugSense {
 #else
             environment.ScreenDpi = "unavailable";
 #endif
-            environment.ScreenOrientation = _application.Window.CurrentOrientation.ToString();
+            environment.ScreenOrientation = ScreenOrientation;
             environment.wifi_on = NetworkInterface.GetIsNetworkAvailable() ? bool.TrueString : bool.FalseString;
             return environment;
         }
@@ -285,19 +302,32 @@ namespace BugSense {
 
         private static void ExecuteRequestAsync(string errorJson, string filePath)
         {
-            try {
-                
+            try
+            {
+
                 errorJson = "data=" + Uri.EscapeDataString(errorJson);
+#if WINDOWS_RT
+
+                var content = new StringContent(errorJson);
+
+                var client = new HttpClient();
+                //client.Headers.UserAgent.ParseAdd("WinRT");
+                client.DefaultRequestHeaders.Add("User-Agent", "WinRT");
+                content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
+                content.Headers.Add("X-BugSense-Api-Key", G.API_KEY);
+
+                var response = client.PostAsync(G.URL, content);
+                response.Wait();
+#else
                 var request = HttpWebRequest.Create(new Uri(G.URL)) as HttpWebRequest;
                 request.Method = "POST";
                 request.ContentType = "application/x-www-form-urlencoded";
-#if WINDOWS_RT
-                request.Headers["User-Agent"] = "WinRT";
-#elif iOS
+#if iOS
                 request.UserAgent = "iOS";
 #else
                 request.UserAgent = "WP7";                
-#endif
+#endif // #if iOS
+                
                 request.Headers["X-BugSense-Api-Key"] = G.API_KEY;
                 string contextFilePath = filePath;
                 request.BeginGetRequestStream(ar =>
@@ -312,106 +342,86 @@ namespace BugSense {
                         
                         request.BeginGetResponse(a =>
                         {
-                            try {
+                            try
+                            {
                                 var response = request.EndGetResponse(a);
+#endif // #if WINDOWS_RT
 
 #if WINDOWS_RT
+                Task.Run(
+                            async () =>
+                            {
+                                var fileName = filePath;
+                                var file = await ApplicationData.Current.LocalFolder.CreateFileAsync(fileName, CreationCollisionOption.OpenIfExists);
+                                await file.DeleteAsync();
 
-                                Task.Run(
-                                    async () =>
-                                    {
-                                        var file = await ApplicationData.Current.LocalFolder.GetFileAsync(contextFilePath);
-                                        file.DeleteAsync(StorageDeleteOption.PermanentDelete);
-
-                                    }).Wait();
-                               
+                            }).Wait();
 #else
                                 //Error sent! Delete it!
                                 if (File.Exists(contextFilePath))
                                     File.Delete(contextFilePath);
-#endif
                             }
-                            catch (Exception exc)
-                            {
-                                exc = exc;
-                            }
+                            catch (Exception exc) { }
                         }, null);
                     }
-                    catch (Exception ex)
-                    {
-                        ex = ex;
-                    }
+                    catch (Exception ex) { }
                 }, errorJson);
+#endif
             }
-            catch (Exception e)
-            {
-                /* Error is already saved so next time the app starts will try to send it again*/
-            }
+            catch (Exception e) { /* Error is already saved so next time the app starts will try to send it again*/ }
         }
 
         private static void SaveToFile(string postData)
         {
-            try {
+            try
+            {
+                var fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
+
 #if WINDOWS_RT
+                Task.Run( async () =>
+                {
+                    var folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync(s_FolderName, CreationCollisionOption.OpenIfExists);
+                    var file = await folder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
 
-                Task.Run(
-                    async () =>
+                    using (var fileStream = await file.OpenStreamForWriteAsync())
                     {
-                        var folder = await ApplicationData.Current.LocalFolder.CreateFolderAsync(s_FolderName, CreationCollisionOption.OpenIfExists);
+                        using (var sw = new StreamWriter(fileStream))
+                            sw.Write(postData);
+                    }
 
-                        var fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
-                        var file = await folder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
-
-                        using (var fileStream = await file.OpenStreamForWriteAsync())
-                        {
-                            using (var sw = new StreamWriter(fileStream))
-                                sw.Write(postData);
-                        }
-
-                    }).Wait();
+                }).Wait();
 
 #elif iOS
-                string fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
-                var fullPath = BugSenseHandler.getPath(fileName);
+                var fullPath = Path.Combine(_dataPath, fileName);
                 using (var fs = new FileStream(fullPath, FileMode.Create))
                 {
                     using (var sw = new StreamWriter(fs))
-                    {
                         sw.Write(postData);
-                    }
                 }
 #else
-                
-                using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
+
+                using (var storage = IsolatedStorageFile.GetUserStoreForApplication())
+                {
                     if (!storage.DirectoryExists(s_FolderName))
                         storage.CreateDirectory(s_FolderName);
                     
                     string fileName = string.Format(s_FileName, DateTime.UtcNow.ToString("yyyyMMddHHmmss"), Guid.NewGuid());
-                    using (var fileStream = storage.CreateFile(Path.Combine(s_FolderName, fileName))) {
-                        using (StreamWriter sw = new StreamWriter(fileStream)) {
+                    using (var fileStream = storage.CreateFile(Path.Combine(s_FolderName, fileName)))
+                    {
+                        using (StreamWriter sw = new StreamWriter(fileStream))
                             sw.Write(postData);
-                        }
                     }
                 }
 #endif
             }
-            catch (Exception e)
-            {
-                e = e;
-                /* Getting in here means the phone is about to explode */
-            }
-        }
-        
-        private static string getPath(string fileName)
-        {
-            return Path.Combine(_dataPath, fileName);
+            catch (Exception e) { /* Getting in here means the phone is about to explode */ }
         }
 
         private void ProccessSavedErrors()
         {
-            try {
+            try
+            {
 #if WINDOWS_RT
-
                 Task.Run(
                     async () =>
                     {
@@ -426,15 +436,15 @@ namespace BugSense {
                                 using (var fileStream = await file.OpenStreamForReadAsync())
                                     ProccessFile(fileStream, file.Path);
                             else
+                            {
                                 file.DeleteAsync(StorageDeleteOption.PermanentDelete);
+                            }
 
                             counter++;
                         }
                     });
-                
 #elif iOS
-                    var path = getPath(string.Empty);
-                    
+                    var path = _dataPath;
                     var fileNames = Directory.GetFiles(path);
                     
                     foreach (var file in fileNames)
@@ -458,34 +468,36 @@ namespace BugSense {
                         
                         counter++;
                     }   
-
 #else
-                
-                    using (var storage = IsolatedStorageFile.GetUserStoreForApplication()) {
-                        if (storage.DirectoryExists(s_FolderName)) {
+
+                using (var storage = IsolatedStorageFile.GetUserStoreForApplication())
+                    {
+                        if (storage.DirectoryExists(s_FolderName))
+                        {
                             var fileNames = storage.GetFileNames(s_FolderName + "\\*").OrderByDescending(s => s).ToList();
                             int counter = 0;
-                            foreach (var fileName in fileNames) {
+                            foreach (var fileName in fileNames)
+                            {
                                 if (string.IsNullOrEmpty(fileName))
                                     continue;
+
                                 string filePath = Path.Combine(s_FolderName, fileName);
                                 //If there are more exceptions in the pool we just delete them.
                                 if (counter < s_MaxExceptions)
-                                using (var fileStream = storage.OpenFile(filePath, FileMode.Open)) {
-                                    ProccessFile(fileStream, filePath);
-                                    else
-                                        storage.DeleteFile(filePath);
-                                    counter++;
-                                    //
+                                {
+                                    using (var fileStream = storage.OpenFile(filePath, FileMode.Open))
+                                    {
+                                        ProccessFile(fileStream, filePath);
+                                        counter++;
+                                    }
                                 }
+                                else
+                                    storage.DeleteFile(filePath);
                             }
+                        }
+                    }
 #endif
-            }
-            //If this fails it probably due to an issue with the Isolated Storage.
-            catch (Exception e)
-            {
-                /* Swallow like a fish - Not much that we can do here */
-            }
+            } catch (Exception e) { /* Swallow like a fish - Not much that we can do here */ }
         }
 
         private void Log(string message)
