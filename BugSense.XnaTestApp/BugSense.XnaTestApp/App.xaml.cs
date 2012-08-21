@@ -29,7 +29,6 @@ namespace BugSense.XnaTestApp
         /// </summary>
         public App()
         {
-            this.InitializeComponent();
             this.Suspending += OnSuspending;
         }
 

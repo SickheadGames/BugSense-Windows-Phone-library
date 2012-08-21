@@ -171,7 +171,11 @@ namespace BugSense {
                 return;
             
             // Report the exception
+#if WINDOWS_RT
+            Task.Run(() => { LogError(ex, bugsenseArgs.Comment); }).Wait();
+#else
             LogError(ex, bugsenseArgs.Comment);
+#endif
         }
 
         #endregion
@@ -306,14 +310,12 @@ namespace BugSense {
         {
             try
             {
-
                 errorJson = "data=" + Uri.EscapeDataString(errorJson);
 #if WINDOWS_RT
 
                 var content = new StringContent(errorJson);
 
                 var client = new HttpClient();
-                //client.Headers.UserAgent.ParseAdd("WinRT");
                 client.DefaultRequestHeaders.Add("User-Agent", "WinRT");
                 content.Headers.ContentType = new MediaTypeHeaderValue("application/x-www-form-urlencoded");
                 content.Headers.Add("X-BugSense-Api-Key", G.API_KEY);
@@ -354,7 +356,7 @@ namespace BugSense {
                             async () =>
                             {
                                 var fileName = filePath;
-                                var file = await ApplicationData.Current.LocalFolder.CreateFileAsync(fileName, CreationCollisionOption.OpenIfExists);
+                                var file = await ApplicationData.Current.LocalFolder.GetFileAsync(fileName);
                                 await file.DeleteAsync();
 
                             }).Wait();
@@ -370,7 +372,10 @@ namespace BugSense {
                 }, errorJson);
 #endif
             }
-            catch (Exception e) { /* Error is already saved so next time the app starts will try to send it again*/ }
+            catch (Exception e)
+            {
+                /* Error is already saved so next time the app starts will try to send it again*/
+            }
         }
 
         private static void SaveToFile(string postData)
@@ -435,7 +440,7 @@ namespace BugSense {
                             // If there are more exceptions in the pool we just delete them.
                             if (counter < s_MaxExceptions)
                                 using (var fileStream = await file.OpenStreamForReadAsync())
-                                    ProccessFile(fileStream, file.Path);
+                                    ProccessFile(fileStream, Path.Combine(s_FolderName, file.Name));
                             else
                             {
                                 file.DeleteAsync(StorageDeleteOption.PermanentDelete);
