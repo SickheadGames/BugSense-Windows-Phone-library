@@ -160,6 +160,10 @@ namespace BugSense {
 #endif
             
             var bsException = ex.ToBugSenseEx();
+
+#if WINDOWS_RT
+            bsException.where = a.Message;
+#endif
             var bugsenseArgs = new BugSenseUnhandledExceptionEventArgs(ex);
             
             var handler = UnhandledException;
