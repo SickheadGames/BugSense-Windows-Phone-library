@@ -452,7 +452,7 @@ namespace BugSense {
 
                             counter++;
                         }
-                    });
+                    }).Wait();
 #elif iOS
                     var path = _dataPath;
                     var fileNames = Directory.GetFiles(path);
