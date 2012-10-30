@@ -18,7 +18,26 @@ namespace BugSense.Extensions {
             be.occured_at = DateTime.Now;
             be.message = ex.Message;
             be.backtrace = GetStackTrace(ex);
+            
+#if iOS
+            try
+            {
+                // It's likely the Exception message's will be useless...
+                // try to pase the class/method name from the stacktrace.
+                var traceString = ex.StackTrace.ToString();
+                if (!string.IsNullOrEmpty(traceString))
+                {
+                    var parenthidx = traceString.IndexOf(')');
+                    var periodIdx = traceString.IndexOf('.');
+                    var length = parenthidx - periodIdx;
+                    
+                    be.where = traceString.Substring(periodIdx + 1, length);
+                }
+            }
+            catch (Exception) { }
+#else
             be.where = "NA";
+#endif
             return be;
         }
 

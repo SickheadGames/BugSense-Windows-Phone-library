@@ -10,7 +10,7 @@
     <OutputType>Library</OutputType>
     <RootNamespace>BugSense.iOS</RootNamespace>
     <IPhoneResourcePrefix>Resources</IPhoneResourcePrefix>
-    <AssemblyName>BugSenseiOS</AssemblyName>
+    <AssemblyName>BugSense.iOS</AssemblyName>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|iPhoneSimulator' ">
     <DebugSymbols>True</DebugSymbols>

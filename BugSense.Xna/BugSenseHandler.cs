@@ -20,7 +20,7 @@ using ServiceStack.Text;
 
 #if iOS
 using ServiceStack.Text;
-using MonoTouch.Foundation;
+    using MonoTouch.Foundation;
 using MonoTouch.UIKit;
 #endif
 
@@ -82,7 +82,8 @@ namespace BugSense {
         private static string _dataPath;
 
         public string ScreenOrientation = string.Empty;
-        public Point ScreenSize = new Point();
+        public int ScreenWidth = 0;
+        public int ScreenHeight = 0;
 
         //private Game _application;
         public event EventHandler<BugSenseUnhandledExceptionEventArgs> UnhandledException;
@@ -160,7 +161,7 @@ namespace BugSense {
 #endif
             
             var bsException = ex.ToBugSenseEx();
-
+            
 #if WINDOWS_RT
             bsException.where = a.Message;
 #endif
@@ -285,10 +286,10 @@ namespace BugSense {
 
             environment.phone = result;
 
-            Debug.Assert(ScreenSize.X * ScreenSize.Y > 0, "Screen size was not set.");
+            Debug.Assert(ScreenWidth * ScreenHeight > 0, "Screen size was not set.");
 
-            environment.ScreenWidth = ScreenSize.X;
-            environment.ScreenHeight = ScreenSize.Y;
+            environment.ScreenWidth = ScreenWidth;
+            environment.ScreenHeight = ScreenHeight;
 
             environment.gps_on = "unavailable";
 #if WINDOWS_RT
