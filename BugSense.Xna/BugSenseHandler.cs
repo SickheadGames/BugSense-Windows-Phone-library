@@ -104,6 +104,12 @@ namespace BugSense {
             //    throw new InvalidOperationException("BugSense Handler is not initialized.");
             HandleError(ex, comment);
         }
+        
+#if iOS
+        // Prevents the linker from optimizing out
+        // some generics we need for the JSONserializer
+        static bool preventLinkerStrip = true;
+#endif
 
         /// <summary>
         /// Initialized the BugSense handler. Must be called at App constructor.
@@ -132,6 +138,17 @@ namespace BugSense {
             
             if (!Directory.Exists(_dataPath))
                 Directory.CreateDirectory(_dataPath);
+            
+#pragma warning disable 0219, 0649
+            // iOS Specific Workaround for the JIT compiler.
+            // PRevents the linker from stripping the code out
+            // without actually executing it.
+            if (!preventLinkerStrip)
+            {
+                var dtJson = new JsonSerializer<System.DateTime>();
+                var doubleJSON = new JsonSerializer<double>();
+            }
+#pragma warning restore 0219, 0649
 #endif
             
             //Get a list with exceptions stored from previoys crashes
@@ -225,6 +242,8 @@ namespace BugSense {
 
         #region [ Private Helper Methods ]
 
+        
+        
         private string GetJson(BugSenseRequest request)
         {
             try
